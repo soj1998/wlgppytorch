@@ -1,6 +1,6 @@
 # wlgppytorch
 
-# 123
+# 搭建环境
 
 conda create --name wlgppytorch python=3.11
 
