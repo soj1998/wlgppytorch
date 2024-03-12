@@ -66,7 +66,7 @@ total_sum = sum(total_time)
 total_len = len(total_time)
 print(total_sum, total_len, total_sum / total_len)
 
-
+# net.load_state_dict(torch.load('fizbuz_model.pth'))
 # Test
 with torch.no_grad():
     x = torch.from_numpy(teX).type(xtype)

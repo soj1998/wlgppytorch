@@ -8,4 +8,4 @@ new_data = {'name': 'Mike', 'age': 22}
 
 df._append(new_data, ignore_index=True)
 
-print(df)
+print(round(1.6))
