@@ -2,14 +2,13 @@ import time
 import torch
 from torch import nn
 import torch.optim as optim
+import gpdata
 
-from gp_datautils import get_pytorch_data, decoder, check_fizbuz
-
-epochs = 500
+epochs = 5000
 batches = 64
 lr = 0.01
-input_size = 10
-output_size = 4
+input_size = 45
+output_size = 3
 hidden_size = 100
 
 
@@ -27,12 +26,13 @@ class FizBuzNet(nn.Module):
 
     def forward(self, batch):
         hidden = self.hidden(batch)
-        activated = torch.relu(hidden)
+        activated = torch.sigmoid(hidden)
         out = self.out(activated)
         return out
 
 
-trX, trY, teX, teY = get_pytorch_data(input_size, limit=1000)
+gpxyclass = gpdata.GetData('2529','海源复材','20230101','20231231')
+trX, trY, teX, teY = gpxyclass.get_pytorch_data()
 if torch.cuda.is_available():
     xtype = torch.cuda.FloatTensor
     ytype = torch.cuda.LongTensor
@@ -66,21 +66,20 @@ total_sum = sum(total_time)
 total_len = len(total_time)
 print(total_sum, total_len, total_sum / total_len)
 
-
 # Test
 with torch.no_grad():
     x = torch.from_numpy(teX).type(xtype)
     y = torch.from_numpy(teY).type(ytype)
     hyp = net(x)
     output = loss_fn(hyp, y)
-    outli = ['fizbuz', 'buz', 'fiz', 'number']
     for i in range(len(teX)):
-        num = decoder(teX[i])
-        print(
-            'Number: {} -- Actual: {} -- Prediction: {}'.format(
-                num, check_fizbuz(num), outli[hyp[i].max(0)[1].item()]))
-    print('Test loss: ', output.item() / len(x))
+        if teY[i] != hyp[i].max(0)[1].item():
+            print(
+                'Number: {} -- Actual: {} -- Prediction: {}'.format(
+                    teX[i], teY[i], hyp[i].max(0)[1].item()))
+    print('Test loss: {} -- Test_X_len: {}', output.item() / len(x), len(x))
     accuracy = hyp.max(1)[1] == y
     print('accuracy: ', accuracy.sum().item() / len(accuracy))
 
-torch.save(net.state_dict(), 'fizbuz_model.pth')
+torch.save(net.state_dict(), './data/%s_model.xlsx' % gpxyclass.gpdmmc)
+
