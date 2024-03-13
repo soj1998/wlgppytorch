@@ -1,11 +1,7 @@
-import pandas as pd
+import gpdata1
 
-data = {'name': ['Tom', 'Jerry'], 'age': [20, 21]}
 
-df = pd.DataFrame(data)
+c = gpdata1.GetData('2529','海源复材','20230101','20231231')
+a = c.get_gp_xy()
 
-new_data = {'name': 'Mike', 'age': 22}
-
-df._append(new_data, ignore_index=True)
-
-print(round(1.6))
+print(1)
