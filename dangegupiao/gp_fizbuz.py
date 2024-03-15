@@ -15,9 +15,16 @@ input_size = 45
 output_size = 3
 hidden_size = 100
 train_or_predict = 'predict'
-gpmc = '奥拓电子'
-gpdm = '2587'
+gpdic = {'1': '万润科技_2654', '2': '奥拓电子_2587', '3': '海源复材_2529', '4': '东晶电子_2199',
+         '5': '清源股份_603628', '6': '中远海控_601919', '7': '中公教育_2607', '8': '第一医药_600833'}
+gpmc = gpdic['8'].split('_')[0]
+gpdm = gpdic['8'].split('_')[1]
+p_tdsdate='20240312'
+p_tdedate='20240314'
 
+'''
+train predict
+'''
 
 
 class FizBuzNet(nn.Module):
@@ -41,7 +48,7 @@ class FizBuzNet(nn.Module):
 
 if train_or_predict == 'train':
     daystartend = gpdateutil.getstart_end(str('2587').zfill(6))
-    gpxyclass = gpdata.GetData('2587','奥拓电子',startdate=daystartend[0],enddate=daystartend[1])
+    gpxyclass = gpdata.GetData(gpdm,gpmc,startdate=daystartend[0],enddate=daystartend[1])
     trX, trY, teX, teY = gpxyclass.get_pytorch_data()
     if torch.cuda.is_available():
         xtype = torch.cuda.FloatTensor
@@ -94,11 +101,11 @@ if train_or_predict == 'train':
         accuracy = hyp.max(1)[1] == y
         zql = accuracy.sum().item() / len(accuracy)
         print('accuracy: ', accuracy.sum().item() / len(accuracy))
-    if zql > 0.7:
+    if zql > zdzql:
         torch.save(net.state_dict(), './data/{}_{}_model.pth'.format(round(zql, 4), gpxyclass.gpdmmc))
 
 if train_or_predict == 'predict':
-    gpxyclass = gpdata.GetData(gpdm, gpmc, tdsdate='20240312', tdedate='20240314')
+    gpxyclass = gpdata.GetData(gpdm, gpmc, tdsdate=p_tdsdate, tdedate=p_tdedate)
     x_pr = gpxyclass.get_gp_x_predict()
     x = []
     for row in x_pr.itertuples():
@@ -111,6 +118,7 @@ if train_or_predict == 'predict':
         net.load_state_dict(torch.load('./data/{}_{}_model.pth'.format(zdzql, gpxyclass.gpdmmc)))
     else:
         print('先训练')
+        raise ValueError("先训练")
     np_x = np.array(x)
     xtype = torch.FloatTensor
     pr_x = torch.from_numpy(np_x).type(xtype)
