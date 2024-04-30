@@ -7,8 +7,8 @@ def getmaxzql(gpdmmc, path='./data'):
     for filename in file_list:
         if filename.endswith('_model.pth'):
             name = os.path.splitext(filename)[0].split('_')
-            zql = name[0]
-            file_gpdmmc = name[1]
+            zql = name[1]
+            file_gpdmmc = name[0]
             if gpdmmc == file_gpdmmc:
                 zqll.append(zql)
     if len(zqll) > 0:

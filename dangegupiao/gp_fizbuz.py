@@ -19,8 +19,8 @@ gpdic = {'1': '万润科技_2654', '2': '奥拓电子_2587', '3': '海源复材_
          '5': '清源股份_603628', '6': '中远海控_601919', '7': '中公教育_2607', '8': '第一医药_600833'}
 gpmc = gpdic['8'].split('_')[0]
 gpdm = gpdic['8'].split('_')[1]
-p_tdsdate='20240312'
-p_tdedate='20240314'
+p_tdsdate='20240313'
+p_tdedate='20240315'
 
 '''
 train predict
@@ -47,8 +47,8 @@ class FizBuzNet(nn.Module):
 
 
 if train_or_predict == 'train':
-    daystartend = gpdateutil.getstart_end(str('2587').zfill(6))
-    gpxyclass = gpdata.GetData(gpdm,gpmc,startdate=daystartend[0],enddate=daystartend[1])
+    daystartend = gpdateutil.getstart_end(str(gpdm).zfill(6))
+    gpxyclass = gpdata.GetData(gpdm, gpmc, startdate=daystartend[0], enddate=daystartend[1])
     trX, trY, teX, teY = gpxyclass.get_pytorch_data()
     if torch.cuda.is_available():
         xtype = torch.cuda.FloatTensor
@@ -61,6 +61,7 @@ if train_or_predict == 'train':
     net = FizBuzNet(input_size, hidden_size, output_size)
     zdzql = gpfileutil.getmaxzql(gpdmmc=gpxyclass.gpdmmc, path='./data')
     if os.path.exists('./data/{}_{}_model.pth'.format(zdzql, gpxyclass.gpdmmc)):
+        print('读入模型', '{}_{}_model.pth'.format(zdzql, gpxyclass.gpdmmc))
         net.load_state_dict(torch.load('./data/{}_{}_model.pth'.format(zdzql, gpxyclass.gpdmmc)))
     loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam(net.parameters(), lr=lr)
@@ -103,6 +104,8 @@ if train_or_predict == 'train':
         print('accuracy: ', accuracy.sum().item() / len(accuracy))
     if zql > zdzql:
         torch.save(net.state_dict(), './data/{}_{}_model.pth'.format(round(zql, 4), gpxyclass.gpdmmc))
+    else:
+        print('{}_{}_model.pth'.format(zdzql, gpxyclass.gpdmmc), '准确率比{}高'.format(zql))
 
 if train_or_predict == 'predict':
     gpxyclass = gpdata.GetData(gpdm, gpmc, tdsdate=p_tdsdate, tdedate=p_tdedate)

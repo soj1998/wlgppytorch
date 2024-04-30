@@ -19,9 +19,10 @@ class GetData:
 
     def binary_encoder(self, input_size):
         def wrapper(num):
+            if num >= 31:
+                num = 31
             ret = [int(i) for i in '{0:b}'.format(num)]
             return [0] * (input_size - len(ret)) + ret
-
         return wrapper
 
     def zuhe_encoder(self):
@@ -55,7 +56,7 @@ class GetData:
         stock_zh_a_hist_df = pd.DataFrame()
         if not os.path.exists('./data'):
             os.mkdir('./data')
-        if not os.path.exists('./data/%s.xlsx' % self.gpdmmc):
+        if not os.path.exists('./data/%s.xlsx' % self.gpdmmc) or 1 == 1:
             d1 = self.get_gp_akdata()
             bjlist_x = d1
             encoder = self.binary_encoder(5)
@@ -85,7 +86,7 @@ class GetData:
 
     def get_gp_y(self):  # y不涉及到取新的来预测的问题
         ysdata = self.load_gp_xlsdata()
-        rql, spl, zdfl = [], [], []
+        rql, spl, zdl, zdfl = [], [], [], []
         bjlist = pd.DataFrame()
         for row in ysdata.itertuples([['日期', '收盘', '涨跌幅']]):
             if len(rql) >= 4:
@@ -94,6 +95,7 @@ class GetData:
                 for j in inde:
                     bjlist_x.at[0, 'rq_%d' % j] = rql[j - 1]
                     bjlist_x.at[0, 'sp_%d' % j] = spl[j - 1]
+                    bjlist_x.at[0, 'zd_%d' % j] = zdl[j - 1]
                     bjlist_x.at[0, 'zdf_%d' % j] = zdfl[j - 1]
                 bjlist = pd.concat([bjlist, bjlist_x])
                 rql.pop(0)
@@ -101,6 +103,7 @@ class GetData:
                 zdfl.pop(0)
             rql.append(row.日期)
             spl.append(row.收盘)
+            zdl.append(row.最低)
             zdfl.append(row.涨跌幅)
             stock_zh_a_hist_df_shape = ysdata.shape
             if stock_zh_a_hist_df_shape[0] > 0 \
@@ -109,11 +112,15 @@ class GetData:
                 for j in inde:
                     bjlist_x1.at[0, 'rq_%d' % j] = rql[j - 1]
                     bjlist_x1.at[0, 'sp_%d' % j] = spl[j - 1]
+                    bjlist_x1.at[0, 'zd_%d' % j] = zdl[j - 1]
                     bjlist_x1.at[0, 'zdf_%d' % j] = zdfl[j - 1]
                 bjlist = pd.concat([bjlist, bjlist_x1])
         bjlist['y'] = bjlist.apply(lambda row1: 1
         if 0.05 > (row1['sp_4'] - row1['sp_1']) / row1['sp_1'] >= 0.03
         else 2 if (row1['sp_4'] - row1['sp_1']) / row1['sp_1'] >= 0.05
+                      and (row1['zd_4'] - row1['sp_1']) / row1['sp_1'] >= -0.03
+                      and (row1['zd_3'] - row1['sp_1']) / row1['sp_1'] >= -0.03
+                      and (row1['zd_2'] - row1['sp_1']) / row1['sp_1'] >= -0.03
                       and row1['zdf_2'] + row1['zdf_3'] + row1['zdf_4'] > 3
                       and row1['zdf_2'] > -1 and row1['zdf_3'] > -1 and row1[
                           'zdf_4'] > -1 else 0, axis=1)
@@ -161,13 +168,32 @@ class GetData:
             return pd.DataFrame()
         encoder = self.binary_encoder(5)
         zhencoder = self.zuhe_encoder()
-        bjlist_x['zhenfu'] = bjlist_x.apply(lambda row2: encoder(round(float(row2.振幅))), axis=1)
-        bjlist_x['zhangdiefu'] = bjlist_x.apply(lambda row3: encoder(round(float(row3.涨跌幅) + 10)), axis=1)
-        bjlist_x['huanshoulv'] = bjlist_x.apply(lambda row2: encoder(round(float(row2.换手率))), axis=1)
+        '''
+        encoder(round(30 if float(row2.振幅) > 30 else float(row2.振幅))), axis=1)
+            bjlist_x['zhangdiefu'] = bjlist_x.apply(lambda row3:
+            encoder(round(10 if float(row3.涨跌幅) > 10 else 0 if float(row3.涨跌幅) < -10 else
+            float(row3.涨跌幅) +20)), axis=1)
+            bjlist_x['huanshoulv'] = bjlist_x.apply(lambda row2:
+            encoder(round(30 if float(row2.换手率) > 30 else float(row2.换手率))), axis=1)
+            
+            (lambda row2:
+                zhencoder([encoder(round(30 if float(row2.振幅) > 30 else float(row2.振幅))),
+                    encoder(round(10 if float(row2.涨跌幅) > 10 else 0 if float(row2.涨跌幅) < -10 else
+                           float(row2.涨跌幅) + 20)),
+                    encoder(round(30 if float(row2.换手率) > 30 else float(row2.换手率)))]), axis=1)
+        '''
+        bjlist_x['zhenfu'] = bjlist_x.\
+            apply(lambda row2: encoder(round(30 if float(row2.振幅) > 30 else float(row2.振幅))), axis=1)
+        bjlist_x['zhangdiefu'] = bjlist_x.\
+            apply(lambda row3: encoder(round(10 if float(row3.涨跌幅) > 10 else 0
+            if float(row3.涨跌幅) < -10 else float(row3.涨跌幅) +20)), axis=1)
+        bjlist_x['huanshoulv'] = bjlist_x\
+            .apply(lambda row2: encoder(round(30 if float(row2.换手率) > 30 else float(row2.换手率))), axis=1)
         bjlist_x['zuhe'] = bjlist_x.apply(lambda row2:
-                                          zhencoder([encoder(round(float(row2.振幅))),
-                                                     encoder(round(float(row2.涨跌幅) + 10)),
-                                                     encoder(round(float(row2.换手率)))]), axis=1)
+                zhencoder([encoder(round(30 if float(row2.振幅) > 30 else float(row2.振幅))),
+                    encoder(round(10 if float(row2.涨跌幅) > 10 else 0 if float(row2.涨跌幅) < -10 else
+                           float(row2.涨跌幅) + 20)),
+                    encoder(round(30 if float(row2.换手率) > 30 else float(row2.换手率)))]), axis=1)
         rqll, zuhel = [], []
         bjlist_x1 = pd.DataFrame()
         for row in bjlist_x.itertuples([['日期', 'zuhe']]):
@@ -210,9 +236,14 @@ class GetData:
                     bjlist_x3_1['y1'] = [rowy.y1]
             bjlist_x3_2 = pd.DataFrame(bjlist_x3_1)
             bjlist_x3 = pd.concat([bjlist_x3, bjlist_x3_2])
+        zqy = 1
+        for row in bjlist_x3.itertuples():
+            if row.y == 2:
+                zqy = zqy + 1
+        zqybl = round(zqy / bjlist_x3.shape[0], 4)
         if bjlist_x3.shape[0] > 0:
             try:
-                bjlist_x3.to_excel('./data/%s_xy.xlsx' % self.gpdmmc)
+                bjlist_x3.to_excel('./data/{}_{}_xy.xlsx'.format(self.gpdmmc, str(zqybl)))
             except:
                 print('保存%s_xy.xlsx失败' % self.gpdmmc)
         return bjlist_x3
@@ -310,7 +341,7 @@ class GetData:
             print('error', ValueError)
         return bjlist_x3
 
-    def training_test_gen(self, x, y):
+    def training_test_gen(self, x, y, zqybl):
         assert len(x) == len(y)
         indices = np.random.permutation(range(len(x)))
         split_size = int(0.9 * len(indices))
@@ -318,16 +349,20 @@ class GetData:
         trY = y[indices[:split_size]]
         teX = x[indices[split_size:]]
         teY = y[indices[split_size:]]
-        return trX, trY, teX, teY
+        return trX, trY, teX, teY, zqybl
 
     def get_pytorch_data(self):
         x = []
         y = []
         xylist = self.get_gp_xy()
+        zqy = 1
         for row in xylist.itertuples():
             if len(row.zuhe) > 0 and row.y > -1:
                 ret1 = [int(i) for i in str(row.zuhe).split(' ')]
                 # ret2 = [int(i) for i in str(row.y).split(' ')]
                 x.append(ret1)
                 y.append(row.y)
-        return self.training_test_gen(np.array(x), np.array(y))
+            if row.y == 2:
+                zqy = zqy + 1
+        zqybl = round(zqy / xylist.shape[0], 4)
+        return self.training_test_gen(np.array(x), np.array(y), zqybl)
